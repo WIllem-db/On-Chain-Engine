@@ -1,0 +1,11 @@
+# Ignore virtual environments
+.venv/
+.venv/
+.env
+
+# Ignore dependencies
+node_modules/
+*.log
+
+# Ignore system files
+.DS_Store
