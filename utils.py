@@ -9,7 +9,7 @@ load_dotenv()
 class TokenDashboard:
     """This class  will handle the basic token data."""
 
-    # My methods will have similar names as in the API docs, so you can easily find the specific docs
+    # My methods will have similar names to those in the API docs, so you can easily find the specific docs
 
     def __init__(self):
         self.api_key = os.getenv("COINGECKO_KEY")
@@ -30,8 +30,7 @@ class TokenDashboard:
             return None
 
     def check_ping(self):
-        # This method will check API server status
-        # Keep in mind can check the API server status in multiple different ways
+        """This method will check API server status"""
         url = "https://api.coingecko.com/api/v3/ping"
 
         headers = {"accept": "application/json", "x-cg-demo-api-key": self.api_key}
@@ -54,11 +53,11 @@ class TokenDashboard:
         # print(supported_currencies_list)
         # Not in use, bec shitty method, with no usecase
 
-    def get_top100_tokens(self):
+    def get_top1k_tokens(self):
         params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",
-            "per_page": 100,
+            "per_page": 1000,
             "page": 1,
             "price_change_percentage": "1h,24h,7d",
         }
@@ -70,6 +69,24 @@ class TokenDashboard:
 
         # Iterate over the results and append each token's data to the list
         for x in top100:
+            marketcap = x["market_cap"]
+            volume = x["total_volume"]
+
+            # We will showcase larger numbers in a more abstract way (basic formatting e.g, ) / We'll do the same for total volume
+            if 1000000 <= marketcap < 1000000000:
+                formatted_number = f"{round(marketcap / 1000000, 2)}M"
+            elif 1000000000 <= marketcap < 1000000000000:
+                formatted_number = f"{round(marketcap / 1000000000, 2)}B"
+            elif marketcap >= 1000000000000:
+                formatted_number = f"{round(marketcap / 1000000000000, 2)}T"
+
+            if 1000000 <= volume < 1000000000:
+                formatted_number = f"{round(volume / 1000000, 2)}M"
+            elif 1000000000 <= marketcap < 1000000000000:
+                formatted_number = f"{round(volume / 1000000000, 2)}B"
+            elif marketcap >= 1000000000000:
+                formatted_number = f"{round(volume / 1000000000000, 2)}T"  # Never seen before, but you never know
+
             token_data = {
                 "name": x["id"],
                 "sector": "None",
@@ -77,11 +94,10 @@ class TokenDashboard:
                 "change_1h": x["price_change_percentage_1h_in_currency"],
                 "change_24h": x["price_change_percentage_24h_in_currency"],
                 "change_7d": x["price_change_percentage_7d_in_currency"],
-                "market_cap": x["market_cap"],
+                "market_cap": formatted_number,
                 "volume_24h": x["total_volume"],
             }
             crypto_data.append(token_data)
-
 
         print(crypto_data)  # For debuggin purposes
         return crypto_data  # Return the complete list
@@ -89,7 +105,3 @@ class TokenDashboard:
 
 
 # Run here
-run = TokenDashboard()
-run.check_ping()
-run.supported_currencies_list()
-run.get_top100_tokens()
