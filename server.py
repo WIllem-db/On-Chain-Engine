@@ -7,9 +7,11 @@ app = Flask(__name__)
 @app.route("/")
 # Index will already provide some utility for the end-user
 def index():
+    # TokenDashboard methods
     dashboard = TokenDashboard()
-    top1k_tokens = dashboard.get_top1k_tokens()
-    return render_template("index.html", top1k_tokens=top1k_tokens, abs=abs)
+    top500 = dashboard.general_token_data()
+
+    return render_template("index.html", top500=top500, abs=abs)
 
 
 if __name__ == "__main__":

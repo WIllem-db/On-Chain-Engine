@@ -18,24 +18,41 @@ body {
 
 .dashboard-table {
     background: white;
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--border-color);
+    overflow: hidden;
 }
+
+.table {
+    margin-bottom: 0;
+}
+
+/* Column widths */
+.rank-column { width: 100px; }
+.name-column { width: 240px; }
+.sector-column { width: 120px; }
+.price-column { width: 130px; }
+.change-column { width: 100px; }
+.cap-column { width: 180px; }
+.volume-column { width: 180px; }
+.chart-column { width: 200px; }
 
 .dashboard-table th {
     font-family: 'Roboto Mono', monospace;
-    font-weight: 400;  /* Reduced from 500 */
+    font-weight: 400;
     color: #6b7280;
     border-bottom: 1px solid var(--border-color);
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;  /* Slightly smaller font size */
+    font-size: 0.875rem;
+    white-space: nowrap;
+    padding: 1rem !important;
 }
 
 .dashboard-table td {
-    padding: 1rem;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
-    font-size: 0.875rem;  /* Slightly smaller font size */
+    font-size: 0.875rem;
+    white-space: nowrap;
+    padding: 1rem !important;
 }
 
 .dashboard-table tr:hover {
@@ -46,10 +63,26 @@ body {
     border-bottom: none;
 }
 
+.rank-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.rank-container span {
+    min-width: 20px;
+}
+
 .coin-cell {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+}
+
+.coin-name {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 
 .coin-icon {
@@ -57,21 +90,47 @@ body {
     height: 24px;
     border-radius: 50%;
     background-color: #f3f4f6;
+    flex-shrink: 0;
+}
+
+.favorite-btn {
+    padding: 0;
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    transition: color 0.2s;
+}
+
+.favorite-btn:hover {
+    color: #000;
+}
+
+.ticker {
+    color: #6b7280;
+    opacity: 0.7;
 }
 
 .mono {
     font-family: 'Roboto Mono', monospace;
-    font-weight: 400;  /* Reduced from default */
+}
+
+.text-right {
+    text-align: right !important;
 }
 
 .percentage {
     font-family: 'Roboto Mono', monospace;
-    font-weight: 400;  /* Reduced from default */
+    font-weight: 400;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.25rem;
-    position: relative;
-    padding-left: 12px;  /* Space for the arrow */
 }
 
 .percentage.positive {
@@ -82,57 +141,6 @@ body {
     color: var(--negative);
 }
 
-/* New arrow styles */
-.percentage::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 8px;  /* Smaller width */
-    height: 8px;  /* Smaller height */
-    border: none;  /* Remove old triangle */
-    border-left: 1px solid;  /* Thin line for arrow */
-    border-bottom: 1px solid;  /* Thin line for arrow */
-    border-color: currentColor;  /* Use the same color as the text */
-}
-
-.percentage.positive::before {
-    transform: translateY(-50%) rotate(135deg);  /* Point upward */
-}
-
-.percentage.negative::before {
-    transform: translateY(-50%) rotate(-45deg);  /* Point downward */
-}
-
-.chart-placeholder {
-    width: 100%;
-    height: 32px;
-    background-color: #f3f4f6;
-    border-radius: 4px;
-}
-
-.percentage {
-    font-family: 'Roboto Mono', monospace;
-    font-weight: 400;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.percentage.positive {
-    color: #16a34a;
-}
-
-.percentage.negative {
-    color: #dc2626;
-}
-
-/* Remove the old arrow styles */
-.percentage::before {
-    content: none;
-}
-
-/* Add new arrow styles */
 .arrow {
     font-size: 0.875rem;
     line-height: 1;

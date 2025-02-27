@@ -7,101 +7,48 @@ load_dotenv()
 
 
 class TokenDashboard:
-    """This class  will handle the basic token data."""
-
-    # My methods will have similar names to those in the API docs, so you can easily find the specific docs
+    """This class will mainly use the Coin Lore API to fetch general crypto data."""
 
     def __init__(self):
-        self.api_key = os.getenv("COINGECKO_KEY")
-        self.base_url = "https://api.coingecko.com/api/v3"
+        self.general_data = []
 
-    def simple_request(self, endpoint, params=None):
-        """Handles API requests dynamically with basic error handling."""
-        url = f"{self.base_url}/{endpoint}"
-        print(f"Base URL: {url}")
-        headers = {"accept": "application/json", "x-cg-demo-api-key": self.api_key}
+    def general_token_data(self):
+        """Fetch all data needed for the dashboard on the index page."""
+        URLS = [
+            "https://api.coinlore.net/api/tickers/?start=0&limit=100",
+            "https://api.coinlore.net/api/tickers/?start=100&limit=100",
+            "https://api.coinlore.net/api/tickers/?start=200&limit=100",
+            "https://api.coinlore.net/api/tickers/?start=300&limit=100",
+            "https://api.coinlore.net/api/tickers/?start=400&limit=100",
+        ]
 
-        try:
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()  # Raise error for bad responses
-            return response.json()
-        except requests.RequestException as e:
-            print(f"API request failed: {e}")
-            return None
+        top500 = []  # Initialize an empty list
 
-    def check_ping(self):
-        """This method will check API server status"""
-        url = "https://api.coingecko.com/api/v3/ping"
+        for url in URLS:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json().get("data", [])  # Extract the list from "data" key
 
-        headers = {"accept": "application/json", "x-cg-demo-api-key": self.api_key}
+                for token in data:
+                    top500.append({
+                        "name": token["name"],
+                        "ticker": token["symbol"],
+                        "price": float(token["price_usd"]),
+                        "change_24h": float(token["percent_change_24h"]),  # Corrected key
+                        "change_1h": float(token["percent_change_1h"]),
+                        "change_7d": float(token["percent_change_7d"]),
+                        "market_cap": float(token["market_cap_usd"]),
+                        "volume_24h": float(token["volume24"]),
+                        "rank": token["rank"],
+                        "sector": None
+                    })
+            else:
+                print(f"Failed to fetch data from {url}")
 
-        response = requests.get(url, headers=headers)
-
-        if response.text == '{"gecko_says":"(V3) To the Moon!"}':
-            print("API Status: 200")
-        else:
-            print("API Status: 500")
-
-    def supported_currencies_list(self):
-        """This method should print a list of the top crypto currencies"""
-        supported_currencies_list = self.simple_request(
-            "simple/supported_vs_currencies"
-        )  # No extra params needed
-        # print(len(supported_currencies_list))  # For some reason we only get 64 elements, which is annoying, might have to find another method to load the top 1k tokens ordered by MKTCAP
-
-        # Print the result
-        # print(supported_currencies_list)
-        # Not in use, bec shitty method, with no usecase
-
-    def get_top1k_tokens(self):
-        params = {
-            "vs_currency": "usd",
-            "order": "market_cap_desc",
-            "per_page": 1000,
-            "page": 1,
-            "price_change_percentage": "1h,24h,7d",
-        }
-
-        top100 = self.simple_request("coins/markets", params)
-
-        # Create a list to store all tokens' data
-        crypto_data = []
-
-        # Iterate over the results and append each token's data to the list
-        for x in top100:
-            marketcap = x["market_cap"]
-            volume = x["total_volume"]
-
-            # We will showcase larger numbers in a more abstract way (basic formatting e.g, ) / We'll do the same for total volume
-            if 1000000 <= marketcap < 1000000000:
-                formatted_number = f"{round(marketcap / 1000000, 2)}M"
-            elif 1000000000 <= marketcap < 1000000000000:
-                formatted_number = f"{round(marketcap / 1000000000, 2)}B"
-            elif marketcap >= 1000000000000:
-                formatted_number = f"{round(marketcap / 1000000000000, 2)}T"
-
-            if 1000000 <= volume < 1000000000:
-                formatted_number = f"{round(volume / 1000000, 2)}M"
-            elif 1000000000 <= marketcap < 1000000000000:
-                formatted_number = f"{round(volume / 1000000000, 2)}B"
-            elif marketcap >= 1000000000000:
-                formatted_number = f"{round(volume / 1000000000000, 2)}T"  # Never seen before, but you never know
-
-            token_data = {
-                "name": x["id"],
-                "sector": "None",
-                "price": x["current_price"],
-                "change_1h": x["price_change_percentage_1h_in_currency"],
-                "change_24h": x["price_change_percentage_24h_in_currency"],
-                "change_7d": x["price_change_percentage_7d_in_currency"],
-                "market_cap": formatted_number,
-                "volume_24h": x["total_volume"],
-            }
-            crypto_data.append(token_data)
-
-        print(crypto_data)  # For debuggin purposes
-        return crypto_data  # Return the complete list
+        self.general_data = top500  # Store the fetched data
+        return top500
 
 
-
-# Run here
+# Run methods here
+ds = TokenDashboard()
+ds.general_token_data()

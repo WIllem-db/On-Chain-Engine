@@ -11,31 +11,43 @@
 <body>
     <div class="dashboard-container">
         <div class="dashboard-table">
-            <table class="table table-borderless mb-0">
+            <table class="table table-borderless">
                 <thead>
                     <tr>
-                        <th style="width: 200px">Name</th>
-                        <th style="width: 150px">Sector</th>
-                        <th style="width: 120px">Price</th>
-                        <th style="width: 100px">1h%</th>
-                        <th style="width: 100px">24h%</th>
-                        <th style="width: 100px">7d%</th>
-                        <th style="width: 180px">Market Cap</th>
-                        <th style="width: 180px">Volume (24h)</th>
-                        <th style="width: 200px">Chart</th>
+                        <th class="rank-column">Rank</th>
+                        <th class="name-column">Name</th>
+                        <th class="sector-column">Sector</th>
+                        <th class="text-right price-column">Price</th>
+                        <th class="text-right change-column">1h%</th>
+                        <th class="text-right change-column">24h%</th>
+                        <th class="text-right change-column">7d%</th>
+                        <th class="text-right cap-column">Market Cap</th>
+                        <th class="text-right volume-column">Volume (24h)</th>
+                        <th class="chart-column">Chart</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for coin in top1k_tokens %}
+                    {% for coin in top500 %}
                     <tr>
+                        <td class="rank-cell">
+                            <div class="rank-container">
+                                <span>{{ coin.rank }}</span>
+                                <button class="favorite-btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                </button>
+                            </div>
+                        </td>
                         <td>
                             <div class="coin-cell">
                                 <div class="coin-icon"></div>
-                                <span>{{ coin.name.capitalize() }}</span>
+                                <div class="coin-name">
+                                    <span>{{ coin.name }}</span>
+                                    <span class="ticker">{{ coin.ticker }}</span>
+                                </div>
                             </div>
                         </td>
-                        <td class="mono">{{ coin.sector if coin.sector != 'None' else '-' }}</td>
-                        <td class="mono">${{ "{:,.2f}".format(coin.price) }}</td>
+                        <td>{{ coin.sector if coin.sector else '-' }}</td>
+                        <td class="mono text-right">${{ "{:,.2f}".format(coin.price) }}</td>
                         <td>
                             <div class="percentage {{ 'positive' if coin.change_1h >= 0 else 'negative' }}">
                                 <span class="arrow">{{ '↑' if coin.change_1h >= 0 else '↓' }}</span>
@@ -54,8 +66,8 @@
                                 {{ "{:.2f}%".format(abs(coin.change_7d)) }}
                             </div>
                         </td>
-                        <td class="mono">{{ coin.market_cap }}</td>
-                        <td class="mono">${{ "{:,.0f}".format(coin.volume_24h) }}</td>
+                        <td class="mono text-right">${{ "{:,.0f}".format(coin.market_cap) }}</td>
+                        <td class="mono text-right">${{ "{:,.0f}".format(coin.volume_24h) }}</td>
                         <td>
                             <div class="chart-placeholder"></div>
                         </td>
