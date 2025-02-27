@@ -16,58 +16,63 @@
                     <tr>
                         <th class="rank-column">Rank</th>
                         <th class="name-column">Name</th>
-                        <th class="sector-column">Sector</th>
-                        <th class="text-right price-column">Price</th>
-                        <th class="text-right change-column">1h%</th>
-                        <th class="text-right change-column">24h%</th>
-                        <th class="text-right change-column">7d%</th>
-                        <th class="text-right cap-column">Market Cap</th>
-                        <th class="text-right volume-column">Volume (24h)</th>
+                        <th class="price-column">Price</th>
+                        <th class="change-column">1h%</th>
+                        <th class="change-column">24h%</th>
+                        <th class="change-column">7d%</th>
+                        <th class="change-column">30d%</th>
+                        <th class="cap-column">Market Cap</th>
+                        <th class="volume-column">Volume (24h)</th>
                         <th class="chart-column">Chart</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for coin in top500 %}
                     <tr>
-                        <td class="rank-cell">
+                        <td>
                             <div class="rank-container">
-                                <span>{{ coin.rank }}</span>
-                                <button class="favorite-btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                <span class="rank-number">{{ coin.market_cap_rank }}</span>
+                                <button class="favorite-btn" title="Add to watchlist">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 </button>
                             </div>
                         </td>
                         <td>
                             <div class="coin-cell">
-                                <div class="coin-icon"></div>
+                                <img src="{{ coin.image }}" alt="{{ coin.id }}" class="coin-icon">
                                 <div class="coin-name">
-                                    <span>{{ coin.name }}</span>
-                                    <span class="ticker">{{ coin.ticker }}</span>
+                                    {{ coin.id.capitalize() }}
+                                    <span class="ticker">{{ coin.symbol.upper() }}</span>
                                 </div>
                             </div>
                         </td>
-                        <td>{{ coin.sector if coin.sector else '-' }}</td>
-                        <td class="mono text-right">${{ "{:,.2f}".format(coin.price) }}</td>
+                        <td class="mono price-cell">${{ "{:,.2f}".format(coin.current_price) }}</td>
                         <td>
-                            <div class="percentage {{ 'positive' if coin.change_1h >= 0 else 'negative' }}">
-                                <span class="arrow">{{ '↑' if coin.change_1h >= 0 else '↓' }}</span>
-                                {{ "{:.2f}%".format(abs(coin.change_1h)) }}
+                            <div class="percentage {{ 'positive' if coin.price_change_percentage_1h >= 0 else 'negative' }}">
+                                <span class="arrow">{{ '↑' if coin.price_change_percentage_1h >= 0 else '↓' }}</span>
+                                {{ "{:.2f}%".format(abs(coin.price_change_percentage_1h)) }}
                             </div>
                         </td>
                         <td>
-                            <div class="percentage {{ 'positive' if coin.change_24h >= 0 else 'negative' }}">
-                                <span class="arrow">{{ '↑' if coin.change_24h >= 0 else '↓' }}</span>
-                                {{ "{:.2f}%".format(abs(coin.change_24h)) }}
+                            <div class="percentage {{ 'positive' if coin.price_change_percentage_24 >= 0 else 'negative' }}">
+                                <span class="arrow">{{ '↑' if coin.price_change_percentage_24 >= 0 else '↓' }}</span>
+                                {{ "{:.2f}%".format(abs(coin.price_change_percentage_24)) }}
                             </div>
                         </td>
                         <td>
-                            <div class="percentage {{ 'positive' if coin.change_7d >= 0 else 'negative' }}">
-                                <span class="arrow">{{ '↑' if coin.change_7d >= 0 else '↓' }}</span>
-                                {{ "{:.2f}%".format(abs(coin.change_7d)) }}
+                            <div class="percentage {{ 'positive' if coin.price_change_percentage_7d >= 0 else 'negative' }}">
+                                <span class="arrow">{{ '↑' if coin.price_change_percentage_7d >= 0 else '↓' }}</span>
+                                {{ "{:.2f}%".format(abs(coin.price_change_percentage_7d)) }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="percentage {{ 'positive' if coin.price_change_percentage_30d >= 0 else 'negative' }}">
+                                <span class="arrow">{{ '↑' if coin.price_change_percentage_30d >= 0 else '↓' }}</span>
+                                {{ "{:.2f}%".format(abs(coin.price_change_percentage_30d)) }}
                             </div>
                         </td>
                         <td class="mono text-right">${{ "{:,.0f}".format(coin.market_cap) }}</td>
-                        <td class="mono text-right">${{ "{:,.0f}".format(coin.volume_24h) }}</td>
+                        <td class="mono text-right">${{ "{:,.0f}".format(coin.total_volume) }}</td>
                         <td>
                             <div class="chart-placeholder"></div>
                         </td>

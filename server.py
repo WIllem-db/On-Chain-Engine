@@ -9,7 +9,7 @@ app = Flask(__name__)
 def index():
     # TokenDashboard methods
     dashboard = TokenDashboard()
-    top500 = dashboard.general_token_data()
+    top500 = dashboard.coingecko_top500()
 
     return render_template("index.html", top500=top500, abs=abs)
 
