@@ -1,0 +1,9 @@
+A solution for the sector/category mapping
+
+If the end-user holds his mouse on a specific crypto currency, we can send a HTTP request to one of the Coingecko API endpoints,
+that return multiple core sectors/categories for that specific currency.
+
+- No need for manual dataset
+- No need for an insane amount of request (The specific endpoint I'm talking about doesn't allow multiple inputs...)
+
+We can just send a request whenever the end-user wants to view the sector/category of a specific crypto currency.

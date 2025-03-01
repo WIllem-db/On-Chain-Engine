@@ -16,6 +16,7 @@
                     <tr>
                         <th class="rank-column">Rank</th>
                         <th class="name-column">Name</th>
+                        <th class="sector-column">Sector</th>
                         <th class="price-column">Price</th>
                         <th class="change-column">1h%</th>
                         <th class="change-column">24h%</th>
@@ -45,6 +46,13 @@
                                     <span class="ticker">{{ coin.symbol.upper() }}</span>
                                 </div>
                             </div>
+                        </td>
+                        <td class="sector-cell">
+                            {% if coin.sector %}
+                                {{ coin.sector }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
                         <td class="mono price-cell">${{ "{:,.2f}".format(coin.current_price) }}</td>
                         <td>

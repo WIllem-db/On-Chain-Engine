@@ -12,7 +12,7 @@ body {
 }
 
 .dashboard-container {
-    max-width: 1400px;
+    max-width: 1500px;
     margin: 0 auto;
 }
 
@@ -28,21 +28,35 @@ body {
 }
 
 /* Column widths and alignment */
-.rank-column { width: 80px; }
-.name-column { width: 200px; }
+.rank-column {
+    width: 90px;
+    padding-left: 1.5rem !important;
+}
+.name-column { width: 180px; }
+.sector-column { width: 120px; }
 .price-column {
-    width: 110px;
+    width: 120px;
     text-align: right;
 }
 .change-column {
-    width: 90px;
+    width: 100px;
     text-align: right;
+    padding-right: 1.5rem !important;
 }
-.cap-column, .volume-column {
-    width: 160px;
+.cap-column {
+    width: 180px;
     text-align: right;
+    padding-right: 1.5rem !important;
 }
-.chart-column { width: 140px; }
+.volume-column {
+    width: 180px;
+    text-align: right;
+    padding-right: 1.5rem !important;
+}
+.chart-column {
+    width: 280px;
+    padding-right: 1.5rem !important;
+}
 
 .dashboard-table th {
     font-family: 'Roboto Mono', monospace;
@@ -51,7 +65,7 @@ body {
     border-bottom: 1px solid var(--border-color);
     font-size: 0.8125rem;
     white-space: nowrap;
-    padding: 0.75rem 1rem !important;
+    padding: 1rem !important;
 }
 
 .dashboard-table td {
@@ -59,7 +73,7 @@ body {
     vertical-align: middle;
     font-size: 0.875rem;
     white-space: nowrap;
-    padding: 0.75rem 1rem !important;
+    padding: 1rem !important;
 }
 
 .dashboard-table tr:hover {
@@ -74,6 +88,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    padding-left: 0.5rem;
 }
 
 .rank-number {
@@ -125,6 +140,11 @@ body {
     font-size: 0.875rem;
 }
 
+.sector-cell {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
 .mono {
     font-family: 'Roboto Mono', monospace;
 }
@@ -141,6 +161,7 @@ body {
     justify-content: flex-end;
     gap: 0.25rem;
     font-size: 0.875rem;
+    padding-right: 0.5rem;
 }
 
 .percentage.positive {
@@ -158,11 +179,12 @@ body {
 
 .chart-placeholder {
     width: 100%;
-    height: 32px;
+    height: 40px;
     background-color: #f3f4f6;
     border-radius: 4px;
 }
 
 .price-cell {
     text-align: right;
+    padding-right: 1.5rem !important;
 }
