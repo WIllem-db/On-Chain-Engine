@@ -27,8 +27,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for coin in top500 %}
-                    <tr>
+                    {% for coin in coins %}
+                    <tr class="coin-row" data-symbol="{{ coin.symbol }}">
                         <td>
                             <div class="rank-container">
                                 <span class="rank-number">{{ coin.market_cap_rank }}</span>
@@ -82,5 +82,7 @@
             </table>
         </div>
     </div>
+    <script src="{{ url_for('static', filename='js/crypto-dashboard.js') }}" defer></script>
+
 </body>
 </html>

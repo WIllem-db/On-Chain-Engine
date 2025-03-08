@@ -1,101 +1,78 @@
-from flask import Flask, render_template, jsonify
-import os
-from datetime import datetime
-import mongoengine as me
+from flask import Flask, render_template
 from utils import *
-from models import *
+from mongoengine import connect
+import threading
+import os
 
 app = Flask(__name__)
 
-# Connect to MongoDB using MongoEngine
-me.connect('crypto_dashboard', host='mongodb://localhost:27017/crypto_dashboard')
 
-# Start the scheduler for periodic data updates
-scheduler = start_scheduler()
+# MongoDB connection
+def setup_mongodb():
+    mongodb_uri = os.getenv("MONGODB_URI")
+    if not mongodb_uri:
+        print("Warning: MONGODB_URI not found in environment variables")
+        mongodb_uri = "mongodb://localhost:27017/crypto_tracker"
+
+    try:
+        connect(host=mongodb_uri)
+        print("MongoDB connection established")
+    except Exception as e:
+        print(f"Error connecting to MongoDB: {e}")
+
+
+# Define the initialization function here
+def initialize_price_history_data():
+    dashboard = TokenDashboard()
+    dashboard.initialize_price_history_data(50)  # Call the method on the instance
+
+
+# Call this function at application startup
+setup_mongodb()
 
 
 @app.route("/")
+# Index will already provide some utility for the end-user
 def index():
-    """Main dashboard page."""
-    # Get top cryptocurrencies sorted by market cap
-    top_coins = Coin.objects.order_by('market_cap_rank')[:50]
-
-    return render_template("index.html", top_coins=top_coins, abs=abs)
-
-
-@app.route("/api/coins")
-def get_coins():
-    """API endpoint to get all coins."""
-    coins = Coin.objects.order_by('market_cap_rank')
-
-    # Convert to JSON-serializable format
-    result = []
-    for coin in coins:
-        result.append({
-            "id": coin.id,
-            "symbol": coin.symbol,
-            "name": coin.name,
-            "market_cap_rank": coin.market_cap_rank,
-            "current_price": coin.current_price,
-            "price_change_percentage_24h": coin.price_change_percentage_24h,
-            "price_change_percentage_7d": coin.price_change_percentage_7d,
-            "market_cap": coin.market_cap,
-            "total_volume": coin.total_volume,
-            "image": coin.image
-        })
-
-    return jsonify(result)
-
-
-@app.route("/api/history/<symbol>")
-def get_price_history(symbol):
-    """API endpoint to get 7-day price history for a specific coin."""
+    # TokenDashboard methods
     dashboard = TokenDashboard()
-    history = dashboard.get_price_history(symbol)
+    coins = dashboard.coingecko_top500()  # Fetches the top 500 crypto currencies
 
-    # Format for JSON response
-    formatted_history = []
-    for point in history:
-        formatted_history.append({
-            "timestamp": point.timestamp.isoformat(),
-            "price": point.price
-        })
-
-    return jsonify({
-        "symbol": symbol.upper(),
-        "history": formatted_history
-    })
+    return render_template("index.html", coins=coins, abs=abs)
 
 
-@app.route("/api/refresh")
-def refresh_data():
-    """Manually trigger a data refresh."""
+@app.route("/token-panel")
+# This route will showcase the core on-chain metrics
+def token_panel():
+    return render_template("token-panel.html")
+
+
+@app.route('/coin/<symbol>')
+def coin_detail(symbol):
+    # Uppercase the symbol for consistency
+    symbol = symbol.upper()
+
+    # Create a dashboard instance and fetch data
     dashboard = TokenDashboard()
-    dashboard.coingecko_top500()
-    return jsonify({"success": True, "message": "Data refresh initiated"})
+    price_data = dashboard.fetch_price_history_by_symbol(symbol)
 
-
-@app.route("/coin/<coin_id>")
-def coin_detail(coin_id):
-    """Detail page for a specific coin."""
-    coin = Coin.objects(id=coin_id).first_or_404()
-
-    # Get historical data
-    dashboard = TokenDashboard()
-    history = dashboard.get_price_history(coin.symbol)
-
-    return render_template("coin_detail.html", coin=coin, history=history)
+    return render_template('token-panel.html',
+                          symbol=symbol,
+                          price_data=price_data,
+                          is_detail_view=True)  # Flag to indicate detail view
 
 
 if __name__ == "__main__":
-    # Create necessary directories
-    if not os.path.exists('static/js'):
-        os.makedirs('static/js')
+    # Create a dashboard instance
+    dashboard = TokenDashboard()
 
-    # When app starts, ensure we have the latest data if database is empty
-    if Coin.objects.count() == 0:
-        print("Initial data load...")
-        dashboard = TokenDashboard()
-        dashboard.coingecko_top500()
+    # Create and start the background thread
+    data_thread = threading.Thread(
+        target=dashboard.initialize_price_history_data,
+        args=(50,)  # Limit to first 50 coins
+    )
+    data_thread.daemon = True
+    data_thread.start()
 
+    # Start the Flask application
     app.run(debug=True)

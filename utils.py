@@ -2,93 +2,12 @@ import os
 import requests
 from dotenv import load_dotenv
 import seaborn as sns
-from datetime import datetime, timedelta
+from datetime import datetime
 import time
-from flask_pymongo import PyMongo
-import pymongo
-from apscheduler.schedulers.background import BackgroundScheduler
+from models import *
 
 # Load environment variables from .env
 load_dotenv()
-
-# MongoDB instance to be initialized in the main app
-mongo = None
-
-
-def init_mongo(app):
-    """Initialize MongoDB connection and return instance"""
-    global mongo
-    mongo = PyMongo(app)
-    setup_database()
-    return mongo
-
-
-def setup_database():
-    """Set up database indexes for efficient queries"""
-    # Create indexes for historical prices collection
-    mongo.db.historical_prices.create_index(
-        [("symbol", pymongo.ASCENDING), ("timestamp", pymongo.DESCENDING)]
-    )
-
-    # Create index for coin collection
-    mongo.db.coins.create_index([("rank", pymongo.ASCENDING)])
-    mongo.db.coins.create_index([("symbol", pymongo.ASCENDING)], unique=True)
-
-
-def store_historical_prices(price_data):
-    """Store historical prices for multiple coins efficiently"""
-    if not price_data:
-        return
-
-    bulk_ops = []
-
-    for item in price_data:
-        bulk_ops.append(
-            pymongo.UpdateOne(
-                {"symbol": item["symbol"], "timestamp": item["timestamp"]},
-                {"$set": {"price": item["price"]}},
-                upsert=True
-            )
-        )
-
-    if bulk_ops:
-        mongo.db.historical_prices.bulk_write(bulk_ops)
-        print(f"Stored {len(bulk_ops)} historical price points")
-
-
-def get_coin_history(symbol, days=7):
-    """Get historical price data for a specific coin for the last N days"""
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
-
-    history = list(
-        mongo.db.historical_prices.find(
-            {"symbol": symbol.upper(), "timestamp": {"$gte": cutoff_date}}
-        ).sort("timestamp", pymongo.ASCENDING)
-    )
-
-    # Format the data for frontend use
-    return [{"timestamp": point["timestamp"], "price": point["price"]} for point in history]
-
-
-def update_coin_data(coins_data):
-    """Update the coins collection with latest data"""
-    if not coins_data:
-        return
-
-    bulk_ops = []
-
-    for coin in coins_data:
-        bulk_ops.append(
-            pymongo.UpdateOne(
-                {"symbol": coin["symbol"].upper()},
-                {"$set": coin},
-                upsert=True
-            )
-        )
-
-    if bulk_ops:
-        mongo.db.coins.bulk_write(bulk_ops)
-        print(f"Updated {len(bulk_ops)} coins in database")
 
 
 class TokenDashboard:
@@ -96,69 +15,13 @@ class TokenDashboard:
 
     def __init__(self):
         self.general_data = []
-        self.coingecko_data = []
         self.coingecko_key = os.getenv("COINGECKO_KEY")
         self.moralis_key = os.getenv("MORALIS_KEY")
         self.coinapi_key = os.getenv("COINAPI_KEY")
-
-    def general_token_data(self):
-        """Fetch all data needed for the dashboard on the index page."""
-        URLS = [
-            "https://api.coinlore.net/api/tickers/?start=0&limit=100",
-            "https://api.coinlore.net/api/tickers/?start=100&limit=100",
-            "https://api.coinlore.net/api/tickers/?start=200&limit=100",
-            "https://api.coinlore.net/api/tickers/?start=300&limit=100",
-            "https://api.coinlore.net/api/tickers/?start=400&limit=100",
-        ]
-
-        top500 = []  # Initialize an empty list
-
-        for url in URLS:
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json().get(
-                    "data", []
-                )  # Extract the list from "data" key
-
-                for token in data:
-                    token_data = {
-                        "name": token["name"],
-                        "symbol": token["symbol"].upper(),
-                        "price": float(token["price_usd"]),
-                        "change_24h": float(token["percent_change_24h"]),
-                        "change_1h": float(token["percent_change_1h"]),
-                        "change_7d": float(token["percent_change_7d"]),
-                        "market_cap": float(token["market_cap_usd"]),
-                        "volume_24h": float(token["volume24"]),
-                        "rank": token["rank"],
-                        "sector": None,
-                        "last_updated": datetime.utcnow()
-                    }
-
-                    top500.append(token_data)
-            else:
-                print(f"Failed to fetch data from {url}")
-
-        self.general_data = top500  # Store the fetched data
-
-        # Update MongoDB with the data
-        if mongo:
-            update_coin_data(top500)
-
-            # Store current prices in historical collection
-            historical_points = []
-            current_time = datetime.utcnow()
-
-            for token in top500:
-                historical_points.append({
-                    "symbol": token["symbol"],
-                    "price": token["price"],
-                    "timestamp": current_time
-                })
-
-            store_historical_prices(historical_points)
-
-        return top500
+        self.headers = {
+            "accept": "application/json",
+            "x-cg-demo-api-key": self.coingecko_key,
+        }
 
     def coingecko_top500(self):
         """This method will handle fetching the top500 coins from Coingecko API."""
@@ -173,41 +36,28 @@ class TokenDashboard:
         params = {"price_change_percentage": "1h,24h,7d,30d"}
 
         top500_coingecko = []  # Initialize an empty list
-        historical_points = []
-        current_time = datetime.utcnow()
 
         for url in URLS:
-            try:
-                response = requests.get(
-                    url,
-                    headers={
-                        "accept": "application/json",
-                        "x-cg-demo-api-key": self.coingecko_key,
-                    },
-                    params=params,
-                )
+            response = requests.get(
+                url,
+                headers={
+                    "accept": "application/json",
+                    "x-cg-demo-api-key": self.coingecko_key,
+                },
+                params=params,
+            )
+            if response.status_code == 200:
+                coingecko_data = response.json()  # Parse JSON object
 
-                # Add a delay to respect rate limits
-                time.sleep(1.5)
-
-                if response.status_code == 200:
-                    coingecko_data = response.json()  # Parse JSON object
-
-                    for token in coingecko_data:
-                        # Create historical price point for this token
-                        historical_points.append({
-                            "symbol": token["symbol"].upper(),
-                            "price": float(token["current_price"]),
-                            "timestamp": current_time
-                        })
-
-                        top500_coingecko.append({
+                for token in coingecko_data:
+                    top500_coingecko.append(
+                        {
                             "id": token["id"],
-                            "symbol": token["symbol"].upper(),
+                            "symbol": token["symbol"],
                             "image": token["image"],
                             "current_price": float(token["current_price"]),
                             "market_cap_rank": token["market_cap_rank"],
-                            "price_change_percentage_24h": (
+                            "price_change_percentage_24": (
                                 float(token["price_change_percentage_24h"])
                                 if token.get("price_change_percentage_24h") is not None
                                 else 0.0
@@ -232,69 +82,18 @@ class TokenDashboard:
                             ),
                             "total_volume": float(token["total_volume"]),
                             "market_cap": float(token["market_cap"]),
-                            "last_updated": current_time
-                        })
-                else:
-                    print(f"Failed to fetch data from {url}: Status code {response.status_code}")
-                    print(f"Response: {response.text}")
-            except Exception as e:
-                print(f"Error fetching data from {url}: {str(e)}")
+                        }
+                    )
+            else:
+                print(f"Failed to fetch data from {url}")
 
-        self.coingecko_data = top500_coingecko  # Store the fetched data in the class attribute
-
-        # Update MongoDB with the data
-        if mongo:
-            update_coin_data(top500_coingecko)
-            store_historical_prices(historical_points)
-
+        self.coingecko_data = (
+            top500_coingecko  # Store the fetched data in the class attribute
+        )
         return top500_coingecko  # Return the processed top500 data
 
-    def get_token_metadata(self):
-        """This method is insanely slow due to individual HTTP requests."""
-        top500_names = []
-
-        # Get all top500 names
-        for data in self.general_data:
-            top500_names.append(data["name"].lower())
-
-        # Fetch the top 500 in 5 batches of 100
-        all_coins_data = []
-        for page_num in range(1, 6):  # 5 pages to cover 500 coins
-            batch_str = ",".join(top500_names[(page_num - 1) * 100: page_num * 100])
-
-            url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={batch_str}&order=market_cap_desc&per_page=100&page={page_num}"
-
-            response = requests.get(
-                url,
-                headers={
-                    "accept": "application/json",
-                    "x-cg-demo-api-key": self.coingecko_key,
-                },
-            )
-
-            if response.status_code == 200:
-                coins_data = response.json()
-                all_coins_data.extend(coins_data)
-
-        # Now fetch categories for each coin
-        for coin in all_coins_data:
-            coin_id = coin["id"]
-            coin_details_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
-
-            coin_details_response = requests.get(
-                coin_details_url,
-                headers={
-                    "accept": "application/json",
-                    "x-cg-demo-api-key": self.coingecko_key,
-                },
-            )
-
-            if coin_details_response.status_code == 200:
-                coin_details = coin_details_response.json()
-                categories = coin_details.get("categories", [])
-                print(f"Coin: {coin['name']}, Categories: {categories}")
-
     def get_top1k_currencies(self):
+        """Method currently not in use"""
         URLS = [
             "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1",
             "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=2",
@@ -329,107 +128,194 @@ class TokenDashboard:
 
         return top1000_coingecko
 
-    def fetch_historical_data(self, coin_id, days=7):
-        """Fetch historical price data for a coin from CoinGecko"""
-        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-        params = {
-            "vs_currency": "usd",
-            "days": days,
-            "interval": "hourly"
+    def fetch_price_history_by_symbol(self, symbol):
+        """Fetch price history data for a cryptocurrency by symbol"""
+        print(f"Attempting to fetch price history for {symbol}")
+
+        # Check for existing data
+        symbol = symbol.upper()
+        coin_record = PriceHistory.objects(symbol=symbol).first()
+
+        if coin_record and (datetime.utcnow() - coin_record.last_updated).total_seconds() < 3600:
+            print(f"Using cached data for {symbol}")
+            return coin_record.history
+
+        # Map common symbols to their CoinGecko IDs
+        symbol_to_id = {
+            "BTC": "bitcoin",
+            "ETH": "ethereum",
+            "USDT": "tether",
+            "BNB": "binancecoin",
+            "SOL": "solana",
+            "XRP": "ripple",
+            "USDC": "usd-coin",
+            "ADA": "cardano",
+            "AVAX": "avalanche-2",
+            "DOGE": "dogecoin"
         }
 
+        # Get the correct coin ID
+        coin_id = symbol_to_id.get(symbol, symbol.lower())
+        print(f"Using coin ID: {coin_id}")
+
+        # Fetch new data from API
+        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=7"
+        print(f"Requesting data from: {url}")
+
         try:
-            response = requests.get(
-                url,
-                headers={
-                    "accept": "application/json",
-                    "x-cg-demo-api-key": self.coingecko_key,
-                },
-                params=params
-            )
+            response = requests.get(url, headers=self.headers)
+            print(f"API response status: {response.status_code}")
 
-            if response.status_code == 200:
-                data = response.json()
-                prices = data.get("prices", [])
+            if response.status_code != 200:
+                print(f"API request failed: {response.text}")
+                return coin_record.history if coin_record else []
 
-                # Get the coin symbol
-                coin_data = mongo.db.coins.find_one({"id": coin_id})
-                if not coin_data:
-                    # Try to find by lowercase symbol as id
-                    coin_data = mongo.db.coins.find_one({"symbol": coin_id.upper()})
-                    if not coin_data:
-                        print(f"Coin with ID {coin_id} not found in database")
-                        return []
+            price_data = response.json().get('prices', [])
+            print(f"Retrieved {len(price_data)} data points from API")
 
-                symbol = coin_data["symbol"]
-
-                # Format the data for our database
-                price_points = []
-                for price_point in prices:
-                    timestamp = datetime.fromtimestamp(price_point[0] / 1000)  # Convert milliseconds to datetime
-                    price = price_point[1]
-
-                    price_points.append({
-                        "symbol": symbol,
-                        "price": price,
-                        "timestamp": timestamp
+            # Process data (sample every 4 hours)
+            processed_data = []
+            for i in range(0, len(price_data), 4):
+                if i < len(price_data):
+                    timestamp_ms, price = price_data[i]
+                    timestamp = datetime.fromtimestamp(timestamp_ms / 1000)
+                    processed_data.append({
+                        'timestamp': timestamp,
+                        'price': price
                     })
 
-                # Store historical prices
-                if mongo and price_points:
-                    store_historical_prices(price_points)
+            print(f"Processed {len(processed_data)} data points for storage")
 
-                return price_points
+            # Save to database
+            if coin_record:
+                coin_record.history = processed_data
+                coin_record.last_updated = datetime.utcnow()
+                coin_record.save()
+                print(f"Updated existing record for {symbol}")
             else:
-                print(f"Failed to fetch historical data for {coin_id}: {response.status_code}")
-                return []
+                new_record = PriceHistory(
+                    symbol=symbol,
+                    name=symbol,
+                    history=processed_data,
+                    last_updated=datetime.utcnow()
+                )
+                new_record.save()
+                print(f"Created new record for {symbol}")
+
+            return processed_data
 
         except Exception as e:
-            print(f"Error fetching historical data for {coin_id}: {str(e)}")
+            print(f"Error fetching price data: {str(e)}")
+            return coin_record.history if coin_record else []
+
+    def fetch_price_history_by_id(self, coin_id, symbol):
+        """
+        Fetch 7-day price history data using the coin's ID directly
+
+        Parameters:
+            coin_id (str): CoinGecko ID of the cryptocurrency
+            symbol (str): Symbol for database storage and reference
+
+        Returns:
+            list: Processed price history data
+        """
+        print(f"Fetching price history for {coin_id} ({symbol})")
+
+        # Check for existing data
+        symbol = symbol.upper()
+        coin_record = PriceHistory.objects(symbol=symbol).first()
+
+        if coin_record and (datetime.utcnow() - coin_record.last_updated).total_seconds() < 3600:
+            print(f"Using cached data for {symbol}")
+            return coin_record.history
+
+        # Fetch new data from API
+        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=7"
+        print(f"Requesting data from: {url}")
+
+        try:
+            response = requests.get(url, headers=self.headers)
+            print(f"API response status: {response.status_code}")
+
+            if response.status_code != 200:
+                print(f"API request failed: {response.text}")
+                return []
+
+            price_data = response.json().get('prices', [])
+            print(f"Retrieved {len(price_data)} data points from API")
+
+            # Sample every 4 hours for efficiency
+            processed_data = []
+            for i in range(0, len(price_data), 4):
+                if i < len(price_data):
+                    timestamp_ms, price = price_data[i]
+                    timestamp = datetime.fromtimestamp(timestamp_ms / 1000)
+                    processed_data.append({
+                        'timestamp': timestamp,
+                        'price': price
+                    })
+
+            print(f"Processed {len(processed_data)} data points for storage")
+
+            # Save to database
+            if coin_record:
+                coin_record.history = processed_data
+                coin_record.last_updated = datetime.utcnow()
+                coin_record.save()
+                print(f"Updated existing record for {symbol}")
+            else:
+                new_record = PriceHistory(
+                    symbol=symbol,
+                    name=coin_id,
+                    history=processed_data,
+                    last_updated=datetime.utcnow()
+                )
+                new_record.save()
+                print(f"Created new record for {symbol}")
+
+            return processed_data
+
+        except Exception as e:
+            print(f"Error fetching price data for {coin_id}: {str(e)}")
             return []
 
-    def plot_7d_price_chart(self, symbol):
-        """Get 7-day price chart data for a symbol"""
-        symbol = symbol.upper()
+    def initialize_price_history_data(self, limit=50):
+        """Initialize price history data for top cryptocurrencies"""
+        print(f"Starting data collection for top {limit} cryptocurrencies...")
 
-        # Get price history from the database
-        history = get_coin_history(symbol, days=7)
+        # Get top cryptocurrencies
+        top_coins = self.coingecko_top500()[:limit]
 
-        # If we don't have enough data points, try to backfill
-        if len(history) < 24:  # Arbitrary threshold for "enough" data points
-            # Find the coin ID for this symbol
-            coin_data = mongo.db.coins.find_one({"symbol": symbol})
+        # Track metrics
+        successful = 0
+        failed = 0
 
-            if coin_data and "id" in coin_data:
-                # Use the CoinGecko ID to fetch historical data
-                self.fetch_historical_data(coin_data["id"], days=7)
+        # Process each coin
+        for index, coin in enumerate(top_coins):
+            try:
+                coin_id = coin["id"]
+                symbol = coin["symbol"].upper()
 
-                # Get the updated history
-                history = get_coin_history(symbol, days=7)
-            else:
-                # Try using symbol as ID (lowercase)
-                self.fetch_historical_data(symbol.lower(), days=7)
+                print(f"Processing {index + 1}/{limit}: {symbol}")
 
-                # Get the updated history
-                history = get_coin_history(symbol, days=7)
+                # Use the ID-based method for more reliable API calls
+                result = self.fetch_price_history_by_id(coin_id, symbol)
 
-        return history
+                if result:
+                    successful += 1
+                else:
+                    failed += 1
+
+                # Avoid rate limiting
+                time.sleep(1)
+
+            except Exception as e:
+                failed += 1
+                print(f"Error processing {coin_id}: {str(e)}")
+
+        print(f"Data collection completed: {successful} successful, {failed} failed")
+        return successful, failed
 
 
-# Scheduler for periodic data updates
-def start_scheduler():
-    """Start the background scheduler for periodic updates"""
-    scheduler = BackgroundScheduler()
-    dashboard = TokenDashboard()
-
-    # Schedule hourly updates of price data
-    scheduler.add_job(
-        dashboard.coingecko_top500,
-        'interval',
-        hours=1,
-        next_run_time=datetime.now()
-    )
-
-    scheduler.start()
-    print("Scheduler started for hourly price updates")
-    return scheduler
+# Instance for direct testing
+ds = TokenDashboard()
