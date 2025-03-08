@@ -5,6 +5,12 @@ import seaborn as sns
 from datetime import datetime
 import time
 from models import *
+from pymongo import MongoClient
+import pandas as pd
+import matplotlib.pyplot as plt
+import io
+from PIL import Image
+
 
 # Load environment variables from .env
 load_dotenv()
@@ -316,6 +322,65 @@ class TokenDashboard:
         print(f"Data collection completed: {successful} successful, {failed} failed")
         return successful, failed
 
+    def plot_7d_price_graph(self):
+        # Connect to local MongoDB database
+        client = MongoClient("mongodb://localhost:27017/")
+
+        # Acces database and collection
+        db = client["crypto_tracker"]
+        collection = db["price_history"]
+
+        # Create a dictionary to store data for each symbol
+        crypto_data = {}
+
+        # Get documents for all cryptocurrencies
+        for document in collection.find():
+            symbol = document["symbol"]
+            history = document["history"]
+
+            # Extract timestamps and prices for this cryptocurrency
+            timestamps = [entry["timestamp"] for entry in history]
+            prices = [entry["price"] for entry in history]
+
+            # Store data for this symbol
+            crypto_data[symbol] = {
+                "timestamps": timestamps,
+                "prices": prices
+            }
+
+        # Close connection
+        client.close()
+
+        # Turn crypto_data into a pandas dataframe
+        df = pd.DataFrame.from_dict(crypto_data)
+
+        # Dictionary to store the image buffers
+        plot_buffers = {}
+
+        # Loop through each currency column in your DataFrame
+        for currency in df.columns:
+            # Extract timestamps and prices for this currency
+            timestamps = df.loc['timestamps', currency]
+            prices = df.loc['prices', currency]
+
+            # Create the plot
+            plt.figure()
+            plt.plot(timestamps, prices)
+            plt.title(currency)
+            plt.show()
+
+            # Save to buffer instead of file
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+
+            # Store the buffer in our dictionary
+            plot_buffers[currency] = buffer
+
+            # Close the figure
+            plt.close()
+
 
 # Instance for direct testing
 ds = TokenDashboard()
+ds.plot_7d_price_graph()
