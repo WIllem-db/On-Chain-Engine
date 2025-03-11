@@ -1,10 +1,15 @@
-from flask import Flask, render_template
-from utils import *
+from flask import Flask, render_template, jsonify
+from utils import TokenDashboard
 from mongoengine import connect
 import threading
 import os
+from datetime import datetime
 
 app = Flask(__name__)
+
+# Global cache for price histories
+price_history_cache = {}
+is_fetching = False
 
 
 # MongoDB connection
@@ -21,10 +26,23 @@ def setup_mongodb():
         print(f"Error connecting to MongoDB: {e}")
 
 
-# Define the initialization function here
-def initialize_price_history_data():
-    dashboard = TokenDashboard()
-    dashboard.initialize_price_history_data(50)  # Call the method on the instance
+# Background thread function to fetch price histories
+def fetch_price_histories_background(coins, num_coins=50):
+    global price_history_cache, is_fetching
+
+    try:
+        dashboard = TokenDashboard()
+        # Start with the top N coins to prioritize popular ones
+        for coin in coins[:num_coins]:
+            symbol = coin['symbol'].upper()
+            try:
+                price_history_cache[symbol] = dashboard.fetch_price_history_by_symbol(symbol)
+                print(f"Fetched price history for {symbol}")
+            except Exception as e:
+                print(f"Error fetching price history for {symbol}: {e}")
+    finally:
+        is_fetching = False
+        print("Background fetching completed")
 
 
 # Call this function at application startup
@@ -32,47 +50,75 @@ setup_mongodb()
 
 
 @app.route("/")
-# Index will already provide some utility for the end-user
 def index():
-    # TokenDashboard methods
+    global is_fetching
+
     dashboard = TokenDashboard()
-    coins = dashboard.coingecko_top500()  # Fetches the top 500 crypto currencies
+    coins = dashboard.coingecko_top500()  # Fetches basic info
 
-    return render_template("index.html", coins=coins, abs=abs)
+    # Start a background thread to fetch price histories if not already fetching
+    if not is_fetching:
+        is_fetching = True
+        # Start background thread to fetch price histories
+        threading.Thread(
+            target=fetch_price_histories_background,
+            args=(coins,)
+        ).start()
+
+    # Return the page without waiting for price histories
+    return render_template('dashboard.html', coins=coins, abs=abs)
 
 
-@app.route("/token-panel")
-# This route will showcase the core on-chain metrics
-def token_panel():
-    return render_template("token-panel.html")
+@app.route('/api/price-chart/<symbol>')
+def get_price_chart(symbol):
+    """Endpoint to get price history data for a specific coin"""
+    symbol = symbol.upper()
+
+    # Get from cache if available
+    if symbol in price_history_cache:
+        price_data = price_history_cache[symbol]
+    else:
+        # Fetch if not in cache
+        dashboard = TokenDashboard()
+        price_data = dashboard.fetch_price_history_by_symbol(symbol)
+        price_history_cache[symbol] = price_data
+
+    # Convert to format suitable for charts
+    chart_data = []
+    for entry in price_data:
+        chart_data.append({
+            'timestamp': entry['timestamp'].isoformat(),
+            'price': entry['price']
+        })
+
+    return jsonify(chart_data)
 
 
 @app.route('/coin/<symbol>')
 def coin_detail(symbol):
-    # Uppercase the symbol for consistency
     symbol = symbol.upper()
-
-    # Create a dashboard instance and fetch data
     dashboard = TokenDashboard()
-    price_data = dashboard.fetch_price_history_by_symbol(symbol)
+
+    # Get basic coin info
+    coins = dashboard.coingecko_top500()
+    coin_info = next((coin for coin in coins if coin['symbol'].upper() == symbol), None)
+
+    if not coin_info:
+        return f"Cryptocurrency {symbol} not found", 404
+
+    # Get price history (either from cache or fetch it)
+    if symbol in price_history_cache:
+        price_data = price_history_cache[symbol]
+    else:
+        price_data = dashboard.fetch_price_history_by_symbol(symbol)
+        price_history_cache[symbol] = price_data
 
     return render_template('token-panel.html',
-                          symbol=symbol,
-                          price_data=price_data,
-                          is_detail_view=True)  # Flag to indicate detail view
+                           symbol=symbol,
+                           coin_info=coin_info,
+                           price_data=price_data,
+                           is_detail_view=True)
 
 
 if __name__ == "__main__":
-    # Create a dashboard instance
-    dashboard = TokenDashboard()
-
-    # Create and start the background thread
-    data_thread = threading.Thread(
-        target=dashboard.initialize_price_history_data,
-        args=(50,)  # Limit to first 50 coins
-    )
-    data_thread.daemon = True
-    data_thread.start()
-
-    # Start the Flask application
     app.run(debug=True)

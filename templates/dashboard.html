@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoTracker - Cryptocurrency Markets</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <header class="app-header">
+            <div class="header-container">
+                <div class="logo">
+                    <span class="logo-text">CryptoTracker</span>
+                </div>
+                <nav class="main-nav">
+                    <a href="#" class="nav-link active">Markets</a>
+                    <a href="#" class="nav-link">Portfolio</a>
+                    <a href="#" class="nav-link">News</a>
+                </nav>
+                <button class="refresh-btn" aria-label="Refresh data">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="content-container">
+                <section class="market-overview">
+                    <h1>Cryptocurrency Markets</h1>
+                    <p class="subtitle">Track real-time cryptocurrency prices and market activity</p>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Market Cap</h3>
+                            <div class="value">$2,345,678,901,234</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>24h Volume</h3>
+                            <div class="value">$123,456,789,012</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>BTC Dominance</h3>
+                            <div class="value">42.5%</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Active Cryptocurrencies</h3>
+                            <div class="value">10,000</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="market-table">
+                    <div class="table-header">
+                        <h2>Top Cryptocurrencies by Market Cap</h2>
+                        <p>Real-time prices and market data for top digital assets</p>
+                    </div>
+
+                    <div class="table-controls">
+                        <div class="search-wrapper">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            <input type="text" placeholder="Search cryptocurrencies...">
+                        </div>
+                        <button class="sort-btn">
+                            Sort by
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="crypto-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Name</th>
+                                    <th>Price</th>
+                                    <th>1h%</th>
+                                    <th>24h%</th>
+                                    <th>7d%</th>
+                                    <th>30d%</th>
+                                    <th>Market Cap</th>
+                                    <th>Volume (24h)</th>
+                                    <th>Chart</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for coin in coins %}
+                                <tr>
+                                    <td>{{ coin.market_cap_rank }}</td>
+                                    <td>
+                                        <div class="coin-info">
+                                            <img src="{{ coin.image }}" alt="{{ coin.id }}" class="coin-icon">
+                                            <div class="coin-name-container">
+                                                <span class="coin-name">{{ coin.id.capitalize() }}</span>
+                                                <span class="coin-symbol">{{ coin.symbol.upper() }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="price-cell">${{ coin.current_price }}</td>
+                                    <td class="change-cell {{ 'positive' if coin.price_change_percentage_1h >= 0 else 'negative' }}">
+                                        {{ "{:+.2f}%".format(coin.price_change_percentage_1h) }}
+                                    </td>
+                                    <td class="change-cell {{ 'positive' if coin.price_change_percentage_24 >= 0 else 'negative' }}">
+                                        {{ "{:+.2f}%".format(coin.price_change_percentage_24) }}
+                                    </td>
+                                    <td class="change-cell {{ 'positive' if coin.price_change_percentage_7d >= 0 else 'negative' }}">
+                                        {{ "{:+.2f}%".format(coin.price_change_percentage_7d) }}
+                                    </td>
+                                    <td class="change-cell {{ 'positive' if coin.price_change_percentage_30d >= 0 else 'negative' }}">
+                                        {{ "{:+.2f}%".format(coin.price_change_percentage_30d) }}
+                                    </td>
+                                    <td class="number-cell">${{ coin.market_cap }}</td>
+                                    <td class="number-cell">${{ coin.total_volume }}</td>
+                                    <td>
+                                        <div class="chart-placeholder" data-symbol="{{ coin.symbol }}"></div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
+
