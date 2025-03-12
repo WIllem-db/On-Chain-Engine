@@ -1,9 +1,12 @@
-from flask import Flask, render_template, jsonify
+import base64
+
+from flask import Flask, render_template, jsonify, send_file, current_app
 from utils import TokenDashboard
 from mongoengine import connect
 import threading
 import os
 from datetime import datetime
+
 
 app = Flask(__name__)
 
@@ -55,6 +58,9 @@ def index():
 
     dashboard = TokenDashboard()
     coins = dashboard.coingecko_top500()  # Fetches basic info
+    plots = dashboard.plot_7d_chart()  # All plots are stored in a buffer
+
+    app.config["PLOT_BUFFERS"] = plots  # Acces this from chart route
 
     # Start a background thread to fetch price histories if not already fetching
     if not is_fetching:
@@ -118,6 +124,29 @@ def coin_detail(symbol):
                            coin_info=coin_info,
                            price_data=price_data,
                            is_detail_view=True)
+
+
+@app.route("/chart/<ticker>")
+def get_chart(ticker):
+    plots = current_app.config.get("PLOT_BUFFERS", {})
+
+    if ticker in plots:
+        buffer = plots[ticker]
+        buffer.seek(0)
+
+        return send_file(
+            buffer,
+            mimetype="image/png",
+            as_attachment=False,
+            download_name=f"{ticker}_chart.png"
+        )
+    else:
+        # Return a placeholder or error if chart doesn't exist, this shouldn't be a possible since I already handled cases like this in the plot_7d_chart method
+        return send_file(
+            "static/img/loading-chart.png",
+            mimetype="image/png"
+        ), f404
+
 
 
 if __name__ == "__main__":
