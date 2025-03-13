@@ -30,6 +30,7 @@ body {
   flex-direction: column;
 }
 
+
 /* Header Styles */
 .app-header {
   background-color: var(--card);
@@ -41,12 +42,9 @@ body {
 }
 
 .header-container {
-  max-width: 1400px;
+  max-width: 1800px; /* Increased from 1400px */
   margin: 0 auto;
   padding: 0 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .logo {
@@ -99,7 +97,7 @@ body {
 }
 
 .content-container {
-  max-width: 1400px;
+  max-width: 1800px; /* Increased from 1400px */
   margin: 0 auto;
   padding: 0 1.5rem;
 }
@@ -217,17 +215,19 @@ body {
 /* Table Styles */
 .table-container {
   overflow-x: auto;
+  min-width: 100%;
 }
 
 .crypto-table {
   width: 100%;
   border-collapse: collapse;
   white-space: nowrap;
+  min-width: auto; /* Remove any minimum width */
 }
 
 .crypto-table th {
   text-align: left;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem; /* Slightly reduced padding */
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--muted);
@@ -235,7 +235,7 @@ body {
 }
 
 .crypto-table td {
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem; /* Slightly reduced padding */
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
 }
@@ -270,12 +270,11 @@ body {
   font-size: 0.75rem;
 }
 
-.price-cell {
-  font-weight: 500;
-}
-
-.change-cell {
-  font-weight: 500;
+.price-cell,
+.change-cell,
+.number-cell {
+  font-weight: 500; /* Slightly bolder */
+  font-variant-numeric: tabular-nums;
 }
 
 .change-cell.positive {
@@ -291,10 +290,14 @@ body {
 }
 
 .chart-placeholder {
-  width: 120px;
-  height: 40px;
-  background-color: var(--background);
-  border-radius: 0.25rem;
+    width: 140px;
+    height: 40px;
+    background-color: var(--background);
+    border-radius: 0.25rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Responsive Adjustments */
@@ -313,3 +316,69 @@ body {
   }
 }
 
+/* Set specific widths for columns to better fit the space */
+.crypto-table th:nth-child(1) /* Rank */,
+.crypto-table td:nth-child(1) {
+  width: 80px;
+}
+
+.crypto-table th:nth-child(2) /* Name */,
+.crypto-table td:nth-child(2) {
+  width: 200px;
+}
+
+.crypto-table th:nth-child(3) /* Price */,
+.crypto-table td:nth-child(3) {
+  width: 120px;
+}
+
+.crypto-table th:nth-child(4) /* 1h% */,
+.crypto-table td:nth-child(4),
+.crypto-table th:nth-child(5) /* 24h% */,
+.crypto-table td:nth-child(5),
+.crypto-table th:nth-child(6) /* 7d% */,
+.crypto-table td:nth-child(6),
+.crypto-table th:nth-child(7) /* 30d% */,
+.crypto-table td:nth-child(7) {
+  width: 100px;
+}
+
+.crypto-table th:nth-child(8) /* Market Cap */,
+.crypto-table td:nth-child(8),
+.crypto-table th:nth-child(9) /* Volume */,
+.crypto-table td:nth-child(9) {
+  width: 160px;
+}
+
+.crypto-table th:nth-child(10) /* Chart */,
+.crypto-table td:nth-child(10) {
+  width: 160px;
+}
+
+/* Optional: Add a subtle transition for the hover state */
+.crypto-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.crypto-table tbody tr:hover {
+  background-color: var(--background);
+}
+
+.price-chart {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    border-radius: 4px;
+}
+
+.chart-unavailable {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 1rem;
+    background-color: var(--background);
+    border-radius: 4px;
+}
