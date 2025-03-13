@@ -9,8 +9,10 @@ from models import PriceHistory
 from pymongo import MongoClient
 import pandas as pd
 import matplotlib.pyplot as plt
-import io
-from PIL import Image
+import seaborn as sns
+import base64
+from io import BytesIO
+
 
 # Load environment variables from .env
 load_dotenv()
@@ -21,7 +23,9 @@ class TokenDashboard:
 
     def __init__(self):
         self.coingecko_data = []  # Initialize this in the constructor
-        self.symbol_to_id_map = {}  # Will store mapping of symbols to their CoinGecko IDs
+        self.symbol_to_id_map = (
+            {}
+        )  # Will store mapping of symbols to their CoinGecko IDs
         self.coingecko_key = os.getenv("COINGECKO_KEY")
         self.headers = {
             "accept": "application/json",
@@ -61,7 +65,7 @@ class TokenDashboard:
 
                     top500_coingecko.append(
                         {
-                            "id": token["id"],
+                            "id": token["id"].replace("-", " "),
                             "symbol": token["symbol"],
                             "image": token["image"],
                             "current_price": float(token["current_price"]),
@@ -74,19 +78,19 @@ class TokenDashboard:
                             "price_change_percentage_1h": (
                                 float(token["price_change_percentage_1h_in_currency"])
                                 if token.get("price_change_percentage_1h_in_currency")
-                                   is not None
+                                is not None
                                 else 0.0
                             ),
                             "price_change_percentage_7d": (
                                 float(token["price_change_percentage_7d_in_currency"])
                                 if token.get("price_change_percentage_7d_in_currency")
-                                   is not None
+                                is not None
                                 else 0.0
                             ),
                             "price_change_percentage_30d": (
                                 float(token["price_change_percentage_30d_in_currency"])
                                 if token.get("price_change_percentage_30d_in_currency")
-                                   is not None
+                                is not None
                                 else 0.0
                             ),
                             "total_volume": float(token["total_volume"]),
@@ -96,7 +100,9 @@ class TokenDashboard:
             else:
                 print(f"Failed to fetch data from {url}")
 
-        self.coingecko_data = top500_coingecko  # Store the fetched data in the class attribute
+        self.coingecko_data = (
+            top500_coingecko  # Store the fetched data in the class attribute
+        )
         return top500_coingecko  # Return the processed top500 data
 
     def fetch_price_history_by_symbol(self, symbol):
@@ -108,7 +114,10 @@ class TokenDashboard:
         coin_record = PriceHistory.objects(symbol=symbol).first()
 
         # If we have recent data (last update was less than 1 hour ago), use it
-        if coin_record and (datetime.utcnow() - coin_record.last_updated).total_seconds() < 3600:
+        if (
+            coin_record
+            and (datetime.utcnow() - coin_record.last_updated).total_seconds() < 3600
+        ):
             print(f"Using cached data for {symbol}")
             return coin_record.history
 
@@ -148,11 +157,15 @@ class TokenDashboard:
 
         # Check if we have recent data (less than 4 hours old)
         if coin_record and coin_record.history:
-            latest_timestamp = max(entry['timestamp'] for entry in coin_record.history)
-            time_diff = (datetime.utcnow() - latest_timestamp).total_seconds() / 3600  # hours
+            latest_timestamp = max(entry["timestamp"] for entry in coin_record.history)
+            time_diff = (
+                datetime.utcnow() - latest_timestamp
+            ).total_seconds() / 3600  # hours
 
             if time_diff < 4:
-                print(f"Using fresh data for {symbol} (latest point is {time_diff:.1f} hours old)")
+                print(
+                    f"Using fresh data for {symbol} (latest point is {time_diff:.1f} hours old)"
+                )
                 return coin_record.history
             else:
                 print(f"Data for {symbol} is {time_diff:.1f} hours old, updating...")
@@ -167,9 +180,11 @@ class TokenDashboard:
 
             if response.status_code != 200:
                 print(f"API request failed: {response.text}")
-                return coin_record.history if coin_record and coin_record.history else []
+                return (
+                    coin_record.history if coin_record and coin_record.history else []
+                )
 
-            price_data = response.json().get('prices', [])
+            price_data = response.json().get("prices", [])
             print(f"Retrieved {len(price_data)} data points from API")
 
             # Sample every 4 hours for efficiency
@@ -178,10 +193,7 @@ class TokenDashboard:
                 if i < len(price_data):
                     timestamp_ms, price = price_data[i]
                     timestamp = datetime.fromtimestamp(timestamp_ms / 1000)
-                    processed_data.append({
-                        'timestamp': timestamp,
-                        'price': price
-                    })
+                    processed_data.append({"timestamp": timestamp, "price": price})
 
             print(f"Processed {len(processed_data)} data points")
 
@@ -202,7 +214,7 @@ class TokenDashboard:
                     symbol=symbol,
                     name=coin_id,
                     history=processed_data,
-                    last_updated=datetime.utcnow()
+                    last_updated=datetime.utcnow(),
                 )
                 new_record.save()
                 print(f"Created new record for {symbol}")
@@ -258,6 +270,111 @@ class TokenDashboard:
 
         print(f"Data collection completed: {successful} successful, {failed} failed")
         return successful, failed
+
+    def plot_7d_chart(self, limit=50):
+        """
+        This method works fine, but for trouble shooting purposes, we will limit to 50 plots
+        We will also have to implement threading/background running in order to not slow the website down by 50x
+
+        Also the charts are being made properly, but they might be getting fucked because of the buffer (buffer should be able to handle 500 charts, but it maybe causing loading issues on the server side)
+        """
+        client = MongoClient("mongodb://localhost:27017/")
+        db = client["crypto_tracker"]
+        collection = db["price_history"]
+        history_docs = collection.find().limit(limit)
+        plot_data = {}
+
+        for doc in history_docs:
+            ticker = doc["symbol"]
+            prices = []
+            timestamps = []
+
+            for x in doc["history"]:
+                # print(f"({ticker}):", x["timestamp"])  # Reduce decimals except for currencies under $1 (TODO, will implement this later on)
+                prices.append(x["price"])
+                timestamps.append(x["timestamp"])
+
+            plt.figure(figsize=(10, 5))
+
+            # Change colors based on upward or downward chart
+            if prices[0] > prices[-1]:
+                color = "#EF4444"
+            elif prices[0] < prices[-1]:
+                color = "#10B981"
+            else:
+                color = "#D3D3D3"  # Neutral (light grey)  # When working with multiple decimals, this kinda becomes useless, this is just in case
+
+            lineplot = sns.lineplot(x=timestamps, y=prices, color=color)
+            plt.fill_between(timestamps, prices, color=color, alpha=0.2)
+
+            # Calculation to setup appropriate y-axis limits (chart centering)
+            max_price = max(prices)
+            min_price = min(prices)
+            price_range = max_price - min_price
+            padding = price_range * 0.2
+            y_min = max(0, min_price - padding)
+            y_max = max_price + padding
+            plt.ylim(y_min, y_max)
+
+            lineplot.set_xticks([])
+            lineplot.set_yticks([])
+            lineplot.set_xticklabels([])
+            lineplot.set_yticklabels([])
+
+            for spine in lineplot.spines.values():
+                spine.set_visible(False)
+
+            lineplot.grid(False)
+            lineplot.set_title(False)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+            filename = f"temp_chart_{ticker}.png"
+            plt.savefig(filename, format="png", dpi=300)
+            plt.close()
+
+            with open(filename, "rb") as f:
+                image_data = f.read()
+
+                if image_data[:8] == b'\x89PNG\r\n\x1a\n':
+                    print(f"Valid PNG data for {ticker}")
+                    plot_data[ticker] = image_data
+                else:
+                    print(f"Invalid PNG data for {ticker}")
+
+            os.remove(filename)
+
+        client.close() # Remove the temporary file
+        return plot_data
+
+    def store_charts_in_mongodb(self, chart_data):
+        """Storing the results from plot_7d_chart method in mongodb collection"""
+        client = MongoClient("mongodb://localhost:27017/")
+        db = client["crypto_tracker"]
+        collection = db["price_history"]
+
+        success_count = 0
+
+        for ticker, image_data in chart_data.items():
+            result = collection.update_one(
+                {"symbol": ticker.upper()},
+                {
+                    "$set": {
+                        "chart_image": image_data,
+                        "chart_updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            if result.matched_count > 0:
+                success_count += 1
+                print(f"Successfully stored {ticker} chart")
+            else:
+                print(f"No docs found for {ticker}")
+
+        print(f"{success_count} charts stored")
+        client.close()
+        return success_count
+
 
 
 # Run tests here
