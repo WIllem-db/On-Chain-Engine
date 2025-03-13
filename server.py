@@ -1,12 +1,14 @@
 import base64
+from io import BytesIO
+from flask import Flask, render_template, jsonify, send_file, current_app, Response
+from flask_pymongo import MongoClient
 
-from flask import Flask, render_template, jsonify, send_file, current_app
 from utils import TokenDashboard
 from mongoengine import connect
 import threading
 import os
 from datetime import datetime
-
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -58,9 +60,9 @@ def index():
 
     dashboard = TokenDashboard()
     coins = dashboard.coingecko_top500()  # Fetches basic info
-    plots = dashboard.plot_7d_chart()  # All plots are stored in a buffer
+    plot_data = dashboard.plot_7d_chart()  # All plots are stored in a buffer
 
-    app.config["PLOT_BUFFERS"] = plots  # Acces this from chart route
+    app.config["PLOT_DATA"] = plot_data  # Acces this from chart route
 
     # Start a background thread to fetch price histories if not already fetching
     if not is_fetching:
@@ -128,25 +130,25 @@ def coin_detail(symbol):
 
 @app.route("/chart/<ticker>")
 def get_chart(ticker):
-    plots = current_app.config.get("PLOT_BUFFERS", {})
+    ticker = ticker.upper()
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["crypto_tracker"]
+    collection = db["price_history"]
 
-    if ticker in plots:
-        buffer = plots[ticker]
-        buffer.seek(0)
+    document = collection.find_one(
+        {"symbol": ticker},
+        {"chart_image": 1}
+    )
 
-        return send_file(
-            buffer,
-            mimetype="image/png",
-            as_attachment=False,
-            download_name=f"{ticker}_chart.png"
+    if document and "chart_image" in document:
+        return Response(
+            document["chart_image"],
+            mimetype="image/png"
         )
     else:
-        # Return a placeholder or error if chart doesn't exist, this shouldn't be a possible since I already handled cases like this in the plot_7d_chart method
-        return send_file(
-            "static/img/loading-chart.png",
-            mimetype="image/png"
-        ), f404
+        return f"{ticker} chart not found"
 
+    clien.close()
 
 
 if __name__ == "__main__":
